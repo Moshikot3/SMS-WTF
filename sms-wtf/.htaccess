@@ -1,0 +1,89 @@
+# SMS WTF - Apache Configuration
+
+# Enable mod_rewrite
+RewriteEngine On
+
+# Security Headers
+<IfModule mod_headers.c>
+    Header always set X-Content-Type-Options nosniff
+    Header always set X-Frame-Options DENY
+    Header always set X-XSS-Protection "1; mode=block"
+    Header always set Referrer-Policy "strict-origin-when-cross-origin"
+    Header always set Permissions-Policy "geolocation=(), microphone=(), camera=()"
+</IfModule>
+
+# Protect sensitive directories and files
+RedirectMatch 403 /config/
+RedirectMatch 403 /includes/
+RedirectMatch 403 /templates/
+RedirectMatch 403 /database/
+
+# Hide sensitive files
+<FilesMatch "\.(env|git|sql|md|txt|bak|backup|old|orig|save|swp|tmp|log)$">
+    Order Allow,Deny
+    Deny from all
+</FilesMatch>
+
+# Hide .htaccess files
+<Files ".htaccess">
+    Order Allow,Deny
+    Deny from all
+</Files>
+
+# Prevent access to PHP configuration files
+<Files "config.php">
+    Order Allow,Deny
+    Deny from all
+</Files>
+
+# Prevent access to install.php after installation (uncomment after install)
+# <Files "install.php">
+#     Order Allow,Deny
+#     Deny from all
+# </Files>
+
+# Cache static assets
+<IfModule mod_expires.c>
+    ExpiresActive On
+    ExpiresByType text/css "access plus 1 month"
+    ExpiresByType application/javascript "access plus 1 month"
+    ExpiresByType image/png "access plus 1 month"
+    ExpiresByType image/jpg "access plus 1 month"
+    ExpiresByType image/jpeg "access plus 1 month"
+    ExpiresByType image/gif "access plus 1 month"
+    ExpiresByType image/svg+xml "access plus 1 month"
+    ExpiresByType font/woff "access plus 1 month"
+    ExpiresByType font/woff2 "access plus 1 month"
+</IfModule>
+
+# Gzip compression
+<IfModule mod_deflate.c>
+    AddOutputFilterByType DEFLATE text/plain
+    AddOutputFilterByType DEFLATE text/html
+    AddOutputFilterByType DEFLATE text/xml
+    AddOutputFilterByType DEFLATE text/css
+    AddOutputFilterByType DEFLATE application/xml
+    AddOutputFilterByType DEFLATE application/xhtml+xml
+    AddOutputFilterByType DEFLATE application/rss+xml
+    AddOutputFilterByType DEFLATE application/javascript
+    AddOutputFilterByType DEFLATE application/x-javascript
+</IfModule>
+
+# Error pages
+ErrorDocument 403 /error/403.html
+ErrorDocument 404 /error/404.html
+ErrorDocument 500 /error/500.html
+
+# Disable server signature
+ServerSignature Off
+
+# Prevent directory browsing
+Options -Indexes
+
+# Set default character set
+AddDefaultCharset UTF-8
+
+# Force correct MIME types
+AddType text/css .css
+AddType application/javascript .js
+AddType application/json .json
