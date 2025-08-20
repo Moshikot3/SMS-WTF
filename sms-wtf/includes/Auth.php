@@ -63,8 +63,8 @@ class Auth {
         $this->db->update(
             'website_settings',
             ['setting_value' => $hash],
-            'setting_key = ?',
-            ['site_password_hash']
+            'setting_key = :setting_key',
+            ['setting_key' => 'site_password_hash']
         );
     }
 
@@ -72,8 +72,8 @@ class Auth {
         $this->db->update(
             'website_settings',
             ['setting_value' => $enabled ? 'true' : 'false'],
-            'setting_key = ?',
-            ['site_password_enabled']
+            'setting_key = :setting_key',
+            ['setting_key' => 'site_password_enabled']
         );
     }
 

@@ -84,27 +84,45 @@ try {
     $phoneNumber = $payload['phoneNumber'];
     $message = $payload['message'];
     $receivedAt = $payload['receivedAt'];
-    $senderNumber = $payload['sender'] ?? $payload['from'] ?? $phoneNumber; // Use phoneNumber as sender if no sender field
+    $senderNumber = $payload['sender'] ?? $payload['from'] ?? null;
     $senderName = $payload['senderName'] ?? null;
 
-    // IMPORTANT: SMS Gateway seems to put sender number in phoneNumber field
-    // We need to find which of our registered numbers actually received this SMS
+    // IMPORTANT: SMS Gateway behavior analysis:
+    // - phoneNumber field can contain either a phone number OR a sender name
+    // - We need to determine if phoneNumber is actually a phone number or sender name
+    
+    $isPhoneNumberActuallyPhone = preg_match('/^\+?\d+$/', $phoneNumber);
+    
     $smsManager = new SMSManager();
     $allRegisteredPhones = $smsManager->getPhoneNumbers(true); // Get active phones only
     
-    if (count($allRegisteredPhones) == 1) {
-        // If only one phone registered, use that as receiver
-        $receiverPhone = $allRegisteredPhones[0]['phone_number'];
-        $actualSender = $phoneNumber; // phoneNumber is actually the sender
+    if (!$isPhoneNumberActuallyPhone) {
+        // phoneNumber contains a sender name (like "Celerity")
+        $senderName = $phoneNumber; // Use phoneNumber as sender name
+        $senderNumber = null; // No phone number for this sender
         
-        error_log("SMS Gateway correction: Receiver=$receiverPhone, Sender=$actualSender");
-        
-        $phoneNumber = $receiverPhone;
-        $senderNumber = $actualSender;
+        // Use the registered phone as receiver (assuming single phone setup)
+        if (count($allRegisteredPhones) >= 1) {
+            $phoneNumber = $allRegisteredPhones[0]['phone_number']; // Use first registered phone
+            error_log("SMS from named sender: Receiver={$phoneNumber}, Sender Name={$senderName}");
+        } else {
+            sendResponse(false, 'No registered phone numbers found in system');
+        }
     } else {
-        // Multiple phones - need to determine which one received the SMS
-        // For now, use the original logic and let admin handle multiple phones
-        error_log("Multiple phones registered - using original phoneNumber: $phoneNumber");
+        // phoneNumber contains an actual phone number
+        if (count($allRegisteredPhones) == 1) {
+            // If only one phone registered, phoneNumber is likely the sender
+            $receiverPhone = $allRegisteredPhones[0]['phone_number'];
+            $actualSender = $phoneNumber; // phoneNumber is actually the sender
+            
+            error_log("SMS from phone number: Receiver=$receiverPhone, Sender=$actualSender");
+            
+            $senderNumber = $actualSender;
+            $phoneNumber = $receiverPhone; // Set receiver as our registered phone
+        } else {
+            // Multiple phones - use original logic
+            error_log("Multiple phones registered - using original phoneNumber: $phoneNumber");
+        }
     }
 
     // Validate phone number format
@@ -134,10 +152,13 @@ try {
         error_log('Invalid timestamp format, using current time: ' . $receivedAt);
     }
 
-    // Clean and validate sender number
+    // Clean and validate sender number (only if it's actually a number)
     if ($senderNumber) {
-        $senderNumber = preg_replace('/[^+\d]/', '', $senderNumber);
-        if (empty($senderNumber)) {
+        $cleanedSenderNumber = preg_replace('/[^+\d]/', '', $senderNumber);
+        if (!empty($cleanedSenderNumber)) {
+            $senderNumber = $cleanedSenderNumber;
+        } else {
+            // If cleaning results in empty string, keep original or set to null
             $senderNumber = null;
         }
     }
